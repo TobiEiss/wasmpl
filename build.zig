@@ -12,6 +12,11 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Export the module for use as a dependency
+    _ = b.addModule("wasmpl", .{
+        .root_source_file = b.path("src/main.zig"),
+    });
+
     // Install the library
     b.installArtifact(lib);
 

@@ -48,10 +48,9 @@ pub const Template = struct {
                     });
                     i = i + end_offset + 2;
                 }
-            } else {
-                try text_buffer.append(template_str[i]);
-                i += 1;
             }
+            try text_buffer.append(template_str[i]);
+            i += 1;
         }
 
         // Flush any remaining text
