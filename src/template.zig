@@ -13,12 +13,12 @@ pub const Template = struct {
     nodes: std.ArrayList(Node),
 
     pub fn init(allocator: std.mem.Allocator, template_str: []const u8) !Template {
-        var nodes = std.ArrayList(Node).init(allocator);
-        errdefer nodes.deinit();
+        var nodes: std.ArrayList(Node) = .empty;
+        errdefer nodes.deinit(allocator);
 
         var i: usize = 0;
-        var text_buffer = std.ArrayList(u8).init(allocator);
-        defer text_buffer.deinit();
+        var text_buffer: std.ArrayList(u8) = .empty;
+        defer text_buffer.deinit(allocator);
 
         while (i < template_str.len) {
             if (i + 1 < template_str.len and
@@ -28,7 +28,7 @@ pub const Template = struct {
                 // Flush any accumulated text
                 if (text_buffer.items.len > 0) {
                     const text_data = try allocator.dupe(u8, text_buffer.items);
-                    try nodes.append(Node{ .action = .text, .data = text_data });
+                    try nodes.append(allocator, Node{ .action = .text, .data = text_data });
                     text_buffer.clearRetainingCapacity();
                 }
 
@@ -42,21 +42,21 @@ pub const Template = struct {
                     );
                     const pipeline_data = try allocator.dupe(u8, pipeline);
 
-                    try nodes.append(Node{
+                    try nodes.append(allocator, Node{
                         .action = Node.Action.pipeline,
                         .data = pipeline_data,
                     });
                     i = i + end_offset + 2;
                 }
             }
-            try text_buffer.append(template_str[i]);
+            try text_buffer.append(allocator, template_str[i]);
             i += 1;
         }
 
         // Flush any remaining text
         if (text_buffer.items.len > 0) {
             const text_data = try allocator.dupe(u8, text_buffer.items);
-            try nodes.append(Node{ .action = .text, .data = text_data });
+            try nodes.append(allocator, Node{ .action = .text, .data = text_data });
         }
 
         return Template{
@@ -69,25 +69,25 @@ pub const Template = struct {
         for (self.nodes.items) |node| {
             self.allocator.free(node.data);
         }
-        self.nodes.deinit();
+        self.nodes.deinit(self.allocator);
     }
 
     pub fn render(self: *Template, allocator: std.mem.Allocator, context: std.StringHashMap([]const u8)) ![]u8 {
-        var result = std.ArrayList(u8).init(allocator);
-        defer result.deinit();
+        var result: std.ArrayList(u8) = .empty;
+        defer result.deinit(allocator);
 
         for (self.nodes.items) |node| {
             switch (node.action) {
-                .text => try result.appendSlice(node.data),
+                .text => try result.appendSlice(allocator, node.data),
                 .pipeline => {
                     const key = std.mem.trim(u8, node.data, &[_]u8{'.'});
                     if (context.get(key)) |value| {
-                        try result.appendSlice(value);
+                        try result.appendSlice(allocator, value);
                     }
                 },
             }
         }
 
-        return result.toOwnedSlice();
+        return result.toOwnedSlice(allocator);
     }
 };

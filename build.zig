@@ -5,11 +5,14 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     // Create a library that can be used as a dependency
-    const lib = b.addStaticLibrary(.{
+    const lib = b.addLibrary(.{
         .name = "wasmpl",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .linkage = .static,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     // Export the module for use as a dependency
@@ -21,14 +24,17 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(lib);
 
     // Create a WebAssembly version of the library
-    const wasm_lib = b.addStaticLibrary(.{
+    const wasm_lib = b.addLibrary(.{
         .name = "wasmpl-wasm",
-        .root_source_file = b.path("src/template.zig"),
-        .target = b.resolveTargetQuery(.{
-            .cpu_arch = .wasm32,
-            .os_tag = .freestanding,
+        .linkage = .static,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/template.zig"),
+            .target = b.resolveTargetQuery(.{
+                .cpu_arch = .wasm32,
+                .os_tag = .freestanding,
+            }),
+            .optimize = optimize,
         }),
-        .optimize = optimize,
     });
 
     // Install the WebAssembly library
@@ -40,9 +46,11 @@ pub fn build(b: *std.Build) void {
 
     // Tests
     const tests = b.addTest(.{
-        .root_source_file = b.path("tests/template_test.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/template_test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
         .filters = b.args orelse &.{},
     });
 
